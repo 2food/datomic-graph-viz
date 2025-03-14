@@ -1,0 +1,10 @@
+{:paths ["src"]
+ :deps  {}
+ :aliases
+ {:dev
+  {:extra-paths ["dev"]}
+  :example
+  {:extra-paths ["server-src"]
+   :extra-deps  {com.datomic/peer       {:mvn/version "1.0.7277"}
+                 thheller/shadow-cljs   {:mvn/version "2.20.1"}
+                 no.cjohansen/replicant {:mvn/version "2025.03.02"}}}}}
