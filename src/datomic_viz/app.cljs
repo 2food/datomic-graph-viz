@@ -1,6 +1,8 @@
 (ns datomic-viz.app
   (:require [clojure.string :as str]
+            [kitchen-async.promise :as p]
             [replicant.dom :as r]
+            [lambdaisland.fetch :as fetch]
             ["d3" :as d3]))
 
 (def graph-width js/window.screen.width)
@@ -148,23 +150,6 @@
 
 (add-watch state :render (fn [_ _ _ data] (render data)))
 
-(def data
-  [["Eve" :person/child "Cain"]
-   ["Eve" :person/child "Seth"]
-   ["Eve" :person/child "Abel"]
-   ["Eve" :person/child "Awan"]
-   ["Eve" :person/child "Azura"]
-   ["Seth" :person/child "Enos"]
-   ["Seth" :person/child "Noam"]
-   ["Awan" :person/child "Enoch"]])
-
-(defn datoms->graph-data [datoms]
-  (let [entities (map (fn [id] {:id id}) (mapcat (juxt first last) datoms))]
-    {:nodes   (set (map (fn [id] {:id id}) (mapcat (juxt first last) datoms)))
-     :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source e :target v :attribute a})
-                    data)
-     :root-id (:id (first entities))}))
-
-(let [data (datoms->graph-data data)]
+(p/let [{data :body} (fetch/request "/data" {:method :get})]
   (swap! state merge data)
   (init! data))

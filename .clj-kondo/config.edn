@@ -1,0 +1,6 @@
+{:lint-as           {mount.core/defstate       clj-kondo.lint-as/def-catch-all
+                     kitchen-async.promise/let clojure.core/let}
+ :config-in-comment {:linters {:unresolved-namespace {:exclude [user]}
+                               :unresolved-var       {:exclude [user]}}}
+ :linters           {:refer-all {:level :off}}
+ :hooks             {}}
