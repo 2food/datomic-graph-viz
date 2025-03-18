@@ -45,26 +45,8 @@
                                  (.setAttribute dom-node "x2" x2)
                                  (.setAttribute dom-node "y2" y2)))))
     (swap! state assoc
-           :edges (into {} (map (fn [edge] [(.-id edge) edge]) edge-array))
-           :nodes (into {} (map (fn [node] [(.-id node) node]) node-array))
+           :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
            :simulation simulation)))
-
-(def data
-  [["Eve" :person/child "Cain"]
-   ["Eve" :person/child "Seth"]
-   ["Eve" :person/child "Abel"]
-   ["Eve" :person/child "Awan"]
-   ["Eve" :person/child "Azura"]
-   ["Seth" :person/child "Enos"]
-   ["Seth" :person/child "Noam"]
-   ["Awan" :person/child "Enoch"]])
-
-(defn datoms->graph-data [datoms]
-  (let [entities (map (fn [id] {:id id}) (mapcat (juxt first last) datoms))]
-    {:nodes   (set (map (fn [id] {:id id}) (mapcat (juxt first last) datoms)))
-     :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source e :target v :attribute a})
-                    data)
-     :root-id (:id (first entities))}))
 
 (defn mouse-position [event]
   (let [ctm (.getScreenCTM (get-el "svg-graph"))]
@@ -74,7 +56,7 @@
 (defn drag-start [event]
   (.restart (.alphaTarget (:simulation @state) 0.3))
   (let [dom-node (.-target event)
-        node     (get-in @state [:nodes (.-id dom-node)])
+        node     (get-in @state [:node-array (.-id dom-node)])
         [x y] (mouse-position event)]
     (swap! state assoc :dragging (.-id dom-node))
     (set! (.-fx node) x)
@@ -82,7 +64,7 @@
 
 (defn drag [event]
   (when-let [dragging-id (:dragging @state)]
-    (let [node (get-in @state [:nodes dragging-id])
+    (let [node (get-in @state [:node-array dragging-id])
           [x y] (mouse-position event)]
       (set! (.-fx node) x)
       (set! (.-fy node) y))))
@@ -90,7 +72,7 @@
 (defn drag-end [_]
   (.alphaTarget (:simulation @state) 0)
   (when-let [dragging-id (:dragging @state)]
-    (let [node (get-in @state [:nodes dragging-id])]
+    (let [node (get-in @state [:node-array dragging-id])]
       (swap! state dissoc :dragging)
       (set! (.-fx node) nil)
       (set! (.-fy node) nil))))
@@ -99,7 +81,7 @@
   (let [this      (.-target event)
         text-node (get-el (str (.-id this) "-text"))
         [x y] (mouse-position event)]
-    (set! (.-display (.-style text-node)) "inline")
+    (set! (.. text-node -style -display) "block")
     (.setAttribute text-node "x" (+ x 20))
     (.setAttribute text-node "y" (+ y 20))
     (.setAttribute this "stroke" "#000")))
@@ -107,10 +89,10 @@
 (defn hover-end [event]
   (let [this      (.-target event)
         text-node (get-el (str (.-id this) "-text"))]
-    (set! (.-display (.-style text-node)) "none")
+    (set! (.. text-node -style -display) "none")
     (.setAttribute this "stroke" "#fff")))
 
-(defn force-directed-graph [{:keys [nodes edges root-id]}]
+(defn force-directed-graph [{:keys [nodes edges root-id] :as data}]
   (let [arrow-id "arrow"]
     [:svg#svg-graph
      {:width   graph-width
@@ -146,18 +128,43 @@
                   :stroke       "#fff"
                   :r            10
                   :draggable    true
-                  :style        {:cursor "pointer"}
+                  :cursor       "pointer"
                   :on           {:mousedown drag-start
                                  :mousemove hover-start
-                                 :mouseout  hover-end}}]
-        [:text {:id    (str id "-text")
-                :style {:user-select    "none"
-                        :pointer-events "none"
-                        :display        "none"}} id]])]))
+                                 :mouseout  hover-end}}]])
+     (for [{:keys [id] :as node} nodes]
+       [:text {:id    (str id "-text")
+               :style {:z-index        1000
+                       :user-select    "none"
+                       :pointer-events "none"
+                       :display        "none"}}
+        (str node)])]))
 
-(r/render (get-el "app")
-          (let [data (datoms->graph-data data)]
-            (init! data)
+(defn render [data]
+  (r/render (get-el "app")
             [:div
              [:p "hello"]
              [:div#graph-container (force-directed-graph data)]]))
+
+(add-watch state :render (fn [_ _ _ data] (render data)))
+
+(def data
+  [["Eve" :person/child "Cain"]
+   ["Eve" :person/child "Seth"]
+   ["Eve" :person/child "Abel"]
+   ["Eve" :person/child "Awan"]
+   ["Eve" :person/child "Azura"]
+   ["Seth" :person/child "Enos"]
+   ["Seth" :person/child "Noam"]
+   ["Awan" :person/child "Enoch"]])
+
+(defn datoms->graph-data [datoms]
+  (let [entities (map (fn [id] {:id id}) (mapcat (juxt first last) datoms))]
+    {:nodes   (set (map (fn [id] {:id id}) (mapcat (juxt first last) datoms)))
+     :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source e :target v :attribute a})
+                    data)
+     :root-id (:id (first entities))}))
+
+(let [data (datoms->graph-data data)]
+  (swap! state merge data)
+  (init! data))
