@@ -1,110 +1,51 @@
 (ns datomic-viz.app
-  (:require [replicant.dom :as r]
+  (:require [clojure.string :as str]
+            [replicant.dom :as r]
             ["d3" :as d3]))
 
 (def graph-width 928)
 (def graph-height 600)
 
-(defn attrs [thing attr-map]
-  (reduce (fn [t [attr val]] (.attr t attr val)) thing attr-map))
+(defn bounded [[x y]]
+  [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
+   (min (max (- (/ graph-height 2)) y) (/ graph-height 2))])
 
-(defn container-svg [width height]
-  (-> (d3/create "svg")
-      (attrs {"width"   width
-              "height"  height
-              "viewBox" (clj->js [(/ (- width) 2) (/ (- height) 2)
-                                  width height])
-              "style"   "max-width: 100%; height: auto;"})))
+(defonce state (atom {}))
 
-(defn drag [simulation]
-  (letfn [(dragstarted [event d]
-            (when (= 0 (.-active event))
-              (.restart (.alphaTarget simulation 0.3)))
-            (set! (.-fx d) (.-x d))
-            (set! (.-fy d) (.-y d)))
-          (dragged [event d]
-            (set! (.-fx d) (.-x event))
-            (set! (.-fy d) (.-y event)))
-          (dragended [event d]
-            (when (= 0 (.-active event))
-              (.alphaTarget simulation 0))
-            (set! (.-fx d) nil)
-            (set! (.-fy d) nil))]
-    (-> (d3/drag)
-        (.on "start" dragstarted)
-        (.on "drag" dragged)
-        (.on "end" dragended))))
-
-
-(defn with-arrow-marker [svg]
-  (-> svg
-      (.append "defs")
-      (.selectAll "marker")
-      (.data (clj->js ["end"]))
-      (.enter)
-      (.append "marker")
-      (attrs {"id"           identity
-              "viewBox"      "0 0 10 10"
-              "refX"         20
-              "refY"         5
-              "markerWidth"  6
-              "markerHeight" 6
-              "orient"       "auto"})
-      (.append "path")
-      (attrs {"fill" "#000"
-              "d"    "M 0 0 L 10 5 L 0 10 z"})))
-
-(defn render-graph [nodes links root-id]
-  (let [svg        (container-svg graph-width graph-height)
-        _          (with-arrow-marker svg)
-        #_#__ (js/console.log root)
-        simulation (-> (d3/forceSimulation nodes)
-                       (.force "link" (-> (d3/forceLink links)
+(defn init! [{:keys [nodes edges root-id]}]
+  (let [edge-array (clj->js edges)
+        node-array (clj->js nodes)
+        simulation (-> (d3/forceSimulation node-array)
+                       (.alphaDecay 0.005)
+                       (.force "link" (-> (d3/forceLink edge-array)
                                           (.id (fn [d] (.-id d)))
-                                          (.distance 0)
+                                          (.distance 100)
                                           (.strength 0.1)))
                        (.force "charge" (-> (d3/forceManyBody)
                                             (.strength -50)))
+                       (.force "collide" (d3/forceCollide 10))
                        (.force "x" (-> (d3/forceX)
-                                       (.strength (fn [d] (if (= root-id (.-id d)) 0.1 0.01)))))
+                                       (.strength (fn [d] (when (= root-id (.-id d)) 0.01)))))
                        (.force "y" (-> (d3/forceY)
-                                       (.strength (fn [d] (if (= root-id (.-id d)) 0.1 0.01))))))
-        link       (-> svg
-                       (.append "g")
-                       (.attr "stroke", "#999")
-                       (.attr "stroke-opacity", 0.6)
-                       (.selectAll "line")
-                       (.data links)
-                       (.join "line")
-                       (attrs {"stroke"     "#000"
-                               "marker-end" (str "url(" (new js/URL "#end" js/location) ")")}))
-        node       (-> svg
-                       (.append "g")
-                       (.attr "fill" "#fff")
-                       (.attr "stroke" "#000")
-                       (.attr "stroke-width" 1.5)
-                       (.selectAll "circle")
-                       (.data nodes)
-                       (.join "circle")
-                       (.attr "fill" (fn [d] (cond (= root-id (.-id d)) "#d11"
-                                                   (not (.-children d)) "#000")))
-                       (.attr "stroke" (fn [d] (when-not (.-children d) "#fff")))
-                       (.attr "r" 5)
-                       (.call (drag simulation)))]
-    (-> (.append node "text")
-        (.attr "x" 8)
-        (.attr "y" "0.31em")
-        (.text (fn [d] (.-id d))))
+                                       (.strength (fn [d] (when (= root-id (.-id d)) 0.01))))))]
     (.on simulation "tick" (fn []
-                             (-> link
-                                 (.attr "x1" (fn [d] (.-x (.-source d))))
-                                 (.attr "y1" (fn [d] (.-y (.-source d))))
-                                 (.attr "x2" (fn [d] (.-x (.-target d))))
-                                 (.attr "y2" (fn [d] (.-y (.-target d)))))
-                             (-> node
-                                 (.attr "cx" (fn [d] (.-x d)))
-                                 (.attr "cy" (fn [d] (.-y d))))))
-    (.node svg)))
+                             (doseq [node node-array]
+                               (let [dom-node (js/document.getElementById (.-id node))
+                                     [x y] (bounded [(.-x node) (.-y node)])]
+                                 (.setAttribute dom-node "cx" x)
+                                 (.setAttribute dom-node "cy" y)))
+                             (doseq [edge edge-array]
+                               (let [dom-node (js/document.getElementById (.-id edge))
+                                     [x1 y1] (bounded [(.-x (.-source edge)) (.-y (.-source edge))])
+                                     [x2 y2] (bounded [(.-x (.-target edge)) (.-y (.-target edge))])]
+                                 (.setAttribute dom-node "x1" x1)
+                                 (.setAttribute dom-node "y1" y1)
+                                 (.setAttribute dom-node "x2" x2)
+                                 (.setAttribute dom-node "y2" y2)))))
+    (swap! state assoc
+           :edges (into {} (map (fn [edge] [(.-id edge) edge]) edge-array))
+           :nodes (into {} (map (fn [node] [(.-id node) node]) node-array))
+           :simulation simulation)))
 
 (def data
   [["Eve" :person/child "Cain"]
@@ -119,18 +60,105 @@
 (defn datoms->graph-data [datoms]
   (let [entities (map (fn [id] {:id id}) (mapcat (juxt first last) datoms))]
     {:nodes   (set (map (fn [id] {:id id}) (mapcat (juxt first last) datoms)))
-     :links   (mapv (fn [[e a v]] {:source e :target v :attribute a})
+     :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source e :target v :attribute a})
                     data)
      :root-id (:id (first entities))}))
 
-(defn init-graph [node data]
-  (let [{:keys [nodes links root-id]} (datoms->graph-data data)]
-    (.replaceChildren node (render-graph (clj->js nodes) (clj->js links) root-id))))
+(defn mouse-position [event]
+  (let [ctm (.getScreenCTM (js/document.getElementById "svg"))]
+    [(/ (- (.-x event) (.-e ctm)) (.-a ctm))
+     (/ (- (.-y event) (.-f ctm)) (.-d ctm))]))
+
+(defn drag-start [event]
+  (-> (:simulation @state)
+      (.alphaTarget 0.3)
+      (.restart))
+  (let [dom-node (.-target event)
+        node     (get-in @state [:nodes (.-id dom-node)])
+        [x y] (mouse-position event)]
+    (swap! state assoc :dragging (.-id dom-node))
+    (set! (.-fx node) x)
+    (set! (.-fy node) y)))
+
+(defn drag [event]
+  (when-let [dragging-id (:dragging @state)]
+    (let [node (get-in @state [:nodes dragging-id])
+          [x y] (mouse-position event)]
+      (set! (.-fx node) x)
+      (set! (.-fy node) y))))
+
+(defn drag-end [_]
+  (-> (:simulation @state)
+      (.alphaTarget 0))
+  (when-let [dragging-id (:dragging @state)]
+    (let [node (get-in @state [:nodes dragging-id])]
+      (swap! state dissoc :dragging)
+      (set! (.-fx node) nil)
+      (set! (.-fy node) nil))))
+
+(defn hover-start [event]
+  (let [this      (.-target event)
+        text-node (js/document.getElementById (str (.-id this) "-text"))
+        [x y] (mouse-position event)]
+    (set! (.-display (.-style text-node)) "inline")
+    (.setAttribute text-node "x" x)
+    (.setAttribute text-node "y" y)
+    (.setAttribute this "stroke" "#000")))
+
+(defn hover-end [event]
+  (let [this      (.-target event)
+        text-node (js/document.getElementById (str (.-id this) "-text"))]
+    (set! (.-display (.-style text-node)) "none")
+    (.setAttribute this "stroke" "#fff")))
+
+(defn force-directed-graph [{:keys [nodes edges root-id]}]
+  (let [arrow-id "arrow"]
+    [:svg#svg
+     {:width   graph-width
+      :height  graph-height
+      :viewBox (str/join " " [(/ (- graph-width) 2) (/ (- graph-height) 2)
+                              graph-width graph-height])
+      :style   {:max-width "100%" :height "auto"}
+      :on      {:mousemove  drag
+                :mouseup    drag-end
+                :mouseleave drag-end}}
+     [:defs
+      [:marker {:id           arrow-id
+                :viewBox      "-10 -10 20 20"
+                :refX         20
+                :refY         0
+                :markerWidth  20
+                :markerHeight 20
+                :orient       "auto"}
+       [:path {:fill "#070707" :d "M0,-5L10,0L0,5"}]]]
+     (for [{:keys [id]} edges]
+       [:g {:stroke         "#999"
+            :stroke-opacity 0.6}
+        [:line {:id         id
+                :stroke     "#000"
+                :marker-end (str "url(#" arrow-id ")")}]])
+     (for [{:keys [id]} nodes]
+       [:g
+        [:circle {:id           id
+                  :stroke-width 1.5
+                  :fill         (if (= id root-id)
+                                  "#d11"
+                                  "#aaa")
+                  :stroke       "#fff"
+                  :r            10
+                  :draggable    true
+                  :style        {:cursor "pointer"}
+                  :on           {:mousedown drag-start
+                                 :mousemove hover-start
+                                 :mouseout  hover-end}}]
+        [:text {:id    (str id "-text")
+                :style {:user-select    "none"
+                        :pointer-events "none"
+                        :display        "none"}} id]])]))
 
 (r/render js/document.body
-          [:div
-           [:p "hello"]
-           [:div#graph-container
-            {:replicant/on-mount
-             (fn [{:keys [replicant/node]}]
-               (init-graph node data))}]])
+          (let [data (datoms->graph-data data)]
+            (init! data)
+            [:div
+             [:p "hello"]
+             [:div#graph-container (force-directed-graph data)]]))
