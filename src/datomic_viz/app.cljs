@@ -3,8 +3,10 @@
             [replicant.dom :as r]
             ["d3" :as d3]))
 
-(def graph-width 928)
-(def graph-height 600)
+(def graph-width js/window.screen.width)
+(def graph-height (* js/window.screen.height 0.75))
+
+(defn get-el [id] (js/document.getElementById id))
 
 (defn bounded [[x y]]
   [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
@@ -30,12 +32,12 @@
                                        (.strength (fn [d] (when (= root-id (.-id d)) 0.01))))))]
     (.on simulation "tick" (fn []
                              (doseq [node node-array]
-                               (let [dom-node (js/document.getElementById (.-id node))
+                               (let [dom-node (get-el (.-id node))
                                      [x y] (bounded [(.-x node) (.-y node)])]
                                  (.setAttribute dom-node "cx" x)
                                  (.setAttribute dom-node "cy" y)))
                              (doseq [edge edge-array]
-                               (let [dom-node (js/document.getElementById (.-id edge))
+                               (let [dom-node (get-el (.-id edge))
                                      [x1 y1] (bounded [(.-x (.-source edge)) (.-y (.-source edge))])
                                      [x2 y2] (bounded [(.-x (.-target edge)) (.-y (.-target edge))])]
                                  (.setAttribute dom-node "x1" x1)
@@ -65,14 +67,12 @@
      :root-id (:id (first entities))}))
 
 (defn mouse-position [event]
-  (let [ctm (.getScreenCTM (js/document.getElementById "svg"))]
+  (let [ctm (.getScreenCTM (get-el "svg-graph"))]
     [(/ (- (.-x event) (.-e ctm)) (.-a ctm))
      (/ (- (.-y event) (.-f ctm)) (.-d ctm))]))
 
 (defn drag-start [event]
-  (-> (:simulation @state)
-      (.alphaTarget 0.3)
-      (.restart))
+  (.restart (.alphaTarget (:simulation @state) 0.3))
   (let [dom-node (.-target event)
         node     (get-in @state [:nodes (.-id dom-node)])
         [x y] (mouse-position event)]
@@ -88,8 +88,7 @@
       (set! (.-fy node) y))))
 
 (defn drag-end [_]
-  (-> (:simulation @state)
-      (.alphaTarget 0))
+  (.alphaTarget (:simulation @state) 0)
   (when-let [dragging-id (:dragging @state)]
     (let [node (get-in @state [:nodes dragging-id])]
       (swap! state dissoc :dragging)
@@ -98,22 +97,22 @@
 
 (defn hover-start [event]
   (let [this      (.-target event)
-        text-node (js/document.getElementById (str (.-id this) "-text"))
+        text-node (get-el (str (.-id this) "-text"))
         [x y] (mouse-position event)]
     (set! (.-display (.-style text-node)) "inline")
-    (.setAttribute text-node "x" x)
-    (.setAttribute text-node "y" y)
+    (.setAttribute text-node "x" (+ x 20))
+    (.setAttribute text-node "y" (+ y 20))
     (.setAttribute this "stroke" "#000")))
 
 (defn hover-end [event]
   (let [this      (.-target event)
-        text-node (js/document.getElementById (str (.-id this) "-text"))]
+        text-node (get-el (str (.-id this) "-text"))]
     (set! (.-display (.-style text-node)) "none")
     (.setAttribute this "stroke" "#fff")))
 
 (defn force-directed-graph [{:keys [nodes edges root-id]}]
   (let [arrow-id "arrow"]
-    [:svg#svg
+    [:svg#svg-graph
      {:width   graph-width
       :height  graph-height
       :viewBox (str/join " " [(/ (- graph-width) 2) (/ (- graph-height) 2)
@@ -156,7 +155,7 @@
                         :pointer-events "none"
                         :display        "none"}} id]])]))
 
-(r/render js/document.body
+(r/render (get-el "app")
           (let [data (datoms->graph-data data)]
             (init! data)
             [:div
