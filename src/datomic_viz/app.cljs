@@ -1,5 +1,6 @@
 (ns datomic-viz.app
-  (:require [clojure.string :as str]
+  (:require [clojure.pprint :as pprint]
+            [clojure.string :as str]
             [kitchen-async.promise :as p]
             [replicant.dom :as r]
             [lambdaisland.fetch :as fetch]
@@ -94,7 +95,7 @@
     (set! (.. text-node -style -display) "none")
     (.setAttribute this "stroke" "#fff")))
 
-(defn force-directed-graph [{:keys [nodes edges root-id] :as data}]
+(defn force-directed-graph [{:keys [nodes edges root-id]}]
   (let [arrow-id "arrow"]
     [:svg#svg-graph
      {:width   graph-width
@@ -135,12 +136,20 @@
                                  :mousemove hover-start
                                  :mouseout  hover-end}}]])
      (for [{:keys [id] :as node} nodes]
-       [:text {:id    (str id "-text")
-               :style {:z-index        1000
-                       :user-select    "none"
-                       :pointer-events "none"
-                       :display        "none"}}
-        (str node)])]))
+       [:foreignObject {:id        (str id "-text")
+                        :width     400
+                        :height    300
+                        :style     {:user-select    "none"
+                                    :pointer-events "none"
+                                    :display        "none"}
+                        :innerHTML (str "<div>" (str/join "<br/>" (sort (map (fn [[k v]] (str k " " v)) (dissoc node :id)))) "</div>")}])]))
+
+(comment
+  (pprint/write {:this    :a
+                 :that    :b
+                 :another :c}
+                :pretty true)
+  )
 
 (defn render [data]
   (r/render (get-el "app")
