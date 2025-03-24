@@ -1,9 +1,8 @@
 (ns datomic-viz.app
-  (:require [clojure.pprint :as pprint]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [kitchen-async.promise :as p]
-            [replicant.dom :as r]
             [lambdaisland.fetch :as fetch]
+            [replicant.dom :as r]
             ["d3" :as d3]))
 
 (def graph-width js/window.screen.width)
@@ -18,6 +17,8 @@
 (defonce state (atom {}))
 
 (defn init! [{:keys [nodes edges root-id]}]
+  (when-let [sim (:simulation @state)]
+    (.stop sim))
   (let [edge-array (clj->js edges)
         node-array (clj->js nodes)
         simulation (-> (d3/forceSimulation node-array)
@@ -34,9 +35,11 @@
                        (.force "y" (-> (d3/forceY)
                                        (.strength (fn [d] (when (= root-id (.-id d)) 0.01))))))]
     (.on simulation "tick" (fn []
+                             #_(js/console.log node-array)
                              (doseq [node node-array]
                                (let [dom-node (get-el (.-id node))
                                      [x y] (bounded [(.-x node) (.-y node)])]
+
                                  (.setAttribute dom-node "cx" x)
                                  (.setAttribute dom-node "cy" y)))
                              (doseq [edge edge-array]
@@ -95,6 +98,9 @@
     (set! (.. text-node -style -display) "none")
     (.setAttribute this "stroke" "#fff")))
 
+(defn node->color [node]
+  (str "#" (str/join (take 6 (.toString (abs (hash (keys node))) 16)))))
+
 (defn force-directed-graph [{:keys [nodes edges root-id]}]
   (let [arrow-id "arrow"]
     [:svg#svg-graph
@@ -121,13 +127,11 @@
         [:line {:id         id
                 :stroke     "#000"
                 :marker-end (str "url(#" arrow-id ")")}]])
-     (for [{:keys [id]} nodes]
+     (for [{:keys [id] :as node} nodes]
        [:g
         [:circle {:id           id
                   :stroke-width 1.5
-                  :fill         (if (= id root-id)
-                                  "#d11"
-                                  "#aaa")
+                  :fill         (node->color node)
                   :stroke       "#fff"
                   :r            10
                   :draggable    true
@@ -144,21 +148,78 @@
                                     :display        "none"}
                         :innerHTML (str "<div>" (str/join "<br/>" (sort (map (fn [[k v]] (str k " " v)) (dissoc node :id)))) "</div>")}])]))
 
-(comment
-  (pprint/write {:this    :a
-                 :that    :b
-                 :another :c}
-                :pretty true)
-  )
+(defn get-input-value [^js element]
+  (cond
+    (= "number" (.-type element)) (when (not-empty (.-value element))
+                                    (.-valueAsNumber element))
+    :else (.-value element)))
+
+(defn gather-form-params [^js form-el]
+  (some-> (.-elements form-el)
+          into-array
+          (.reduce
+            (fn [res ^js el]
+              (let [k (some-> el .-name not-empty keyword)]
+                (cond-> res
+                        k (assoc k (get-input-value el)))))
+            {})))
+
+(defn get-data [params]
+  (swap! state dissoc :error)
+  (p/let [{data :body :keys [status] :as req} (fetch/request "/data" {:method       :get
+                                                                      :query-params params})]
+    (case status
+      500 (swap! state assoc :error data)
+      (do
+        (swap! state merge data)
+        (init! data)))))
+
+(defn query-params []
+  (update-keys (->> (new js/URLSearchParams js/window.location.search)
+                    (.entries)
+                    (es6-iterator-seq)
+                    (js->clj)
+                    (into {}))
+               keyword))
+
+(defn set-query-params! [params]
+  (let [thing (new js/URLSearchParams js/window.location.search)]
+    (doseq [[k v] params]
+      (.set thing
+            (cond-> k (keyword? k) (name))
+            v))
+    (set! js/window.location.search (.toString thing))))
 
 (defn render [data]
-  (r/render (get-el "app")
-            [:div
-             [:p "hello"]
-             [:div#graph-container (force-directed-graph data)]]))
+  (let [{:keys [eid ancestors descendants]} (query-params)]
+    (r/render (get-el "app")
+              [:div
+               [:form#form {:on {:submit (fn [e]
+                                           (.preventDefault e)
+                                           (let [params (gather-form-params (.-target e))]
+                                             (set-query-params! params)
+                                             (get-data params)))}}
+                [:input {:type          "text"
+                         :name          "eid"
+                         :placeholder   "eid or lookup-ref"
+                         :default-value eid}]
+                [:input {:type          "number"
+                         :name          "ancestors"
+                         :title         "number of ancestors"
+                         :min           0
+                         :default-value (or ancestors 0)}]
+                [:input {:type          "number"
+                         :name          "descendants"
+                         :title         "number of descendants"
+                         :min           0
+                         :default-value (or descendants 1)}]
+                [:button {:type "submit"}
+                 "Go!"]]
+               (when (:error data)
+                 [:p {:style {:color "red"}} (:error data)])
+               [:div#graph-container (force-directed-graph data)]])))
 
 (add-watch state :render (fn [_ _ _ data] (render data)))
 
-(p/let [{data :body} (fetch/request "/data" {:method :get})]
-  (swap! state merge data)
-  (init! data))
+(get-data (query-params))
+
