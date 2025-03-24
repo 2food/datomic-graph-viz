@@ -7,3 +7,4 @@ node_modules
 .nrepl-port
 .clj-kondo/.cache
 /.clj-kondo/imports/
+*.iml
