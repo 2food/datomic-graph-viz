@@ -8,8 +8,42 @@
 
 (def graph-width js/window.screen.width)
 (def graph-height (* js/window.screen.height 0.75))
+(def circle-radius 10)
 
 (defn get-el [id] (js/document.getElementById id))
+
+
+(defn query-params []
+  (update-keys (->> (new js/URLSearchParams js/window.location.search)
+                    (.entries)
+                    (es6-iterator-seq)
+                    (js->clj)
+                    (into {}))
+               keyword))
+
+(defn set-query-params! [params]
+  (let [thing (new js/URLSearchParams js/window.location.search)]
+    (doseq [[k v] params]
+      (.set thing
+            (cond-> k (keyword? k) (name))
+            v))
+    (set! js/window.location.search (.toString thing))))
+
+(defn get-input-value [^js element]
+  (cond
+    (= "number" (.-type element)) (when (not-empty (.-value element))
+                                    (.-valueAsNumber element))
+    :else (.-value element)))
+
+(defn gather-form-params [^js form-el]
+  (some-> (.-elements form-el)
+          into-array
+          (.reduce
+            (fn [res ^js el]
+              (let [k (some-> el .-name not-empty keyword)]
+                (cond-> res
+                        k (assoc k (get-input-value el)))))
+            {})))
 
 (defn bounded [[x y]]
   [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
@@ -20,13 +54,13 @@
 (defn init! [{:keys [nodes edges root-id]}]
   (when-let [sim (:simulation @state)]
     (.stop sim))
-  (let [edge-array (clj->js edges)
+  (let [edge-array (clj->js (map #(update % :attribute str) edges))
         node-array (clj->js nodes)
         simulation (-> (d3/forceSimulation node-array)
                        (.alphaDecay 0.005)
                        (.force "link" (-> (d3/forceLink edge-array)
                                           (.id (fn [d] (.-id d)))
-                                          (.distance 150)
+                                          (.distance (fn [^js d] (+ 20 (* 2 circle-radius) (* 8 (count (.-attribute d))))))
                                           (.strength 0.1)))
                        (.force "charge" (-> (d3/forceManyBody)
                                             (.strength -50)))
@@ -36,7 +70,6 @@
                        (.force "y" (-> (d3/forceY)
                                        (.strength (fn [d] (when (= root-id (.-id d)) 0.01))))))]
     (.on simulation "tick" (fn []
-                             #_(js/console.log node-array)
                              (doseq [node node-array]
                                (let [dom-node (get-el (.-id node))
                                      [x y] (bounded [(.-x node) (.-y node)])]
@@ -96,6 +129,9 @@
     (set! (.. text-node -style -display) "none")
     (.setAttribute this "stroke" reset-color)))
 
+(defn double-click [event]
+  (set-query-params! {:eid (.-id (.-target event))}))
+
 (defn node->color [node]
   (str "#" (str/join (take 6 (.toString (abs (hash (keys node))) 16)))))
 
@@ -113,20 +149,22 @@
      [:defs
       [:marker {:id           arrow-id
                 :viewBox      "-10 -10 20 20"
-                :refX         16
+                :refX         17
                 :refY         0
                 :markerWidth  10
                 :markerHeight 10
                 :orient       "auto"}
-       [:path {:fill "black" :d "M0,-5L10,0L0,5"}]]]
+       [:path {:stroke "black" :stroke-width 1.5 :fill "none" :d "M0,-5L10,0L0,5"}]]]
      (for [{:keys [id attribute]} edges]
        [:g
         [:path {:id           id
                 :stroke       "black"
                 :stroke-width 3
                 :marker-end   (str "url(#" arrow-id ")")}]
-        [:text {:dy -5}
-         [:textPath {:href (str "#" id) :startOffset "10%"}
+        [:text {:dy -5 :style {:user-select "none"
+                               :font-family "Courier New"
+                               :font-size   12}}
+         [:textPath {:href (str "#" id) :startOffset (+ 10 circle-radius)}
           (str attribute)]]])
      (for [{:keys [id] :as node} nodes]
        (let [base-outline-color (if (= id root-id) "red" "white")]
@@ -135,42 +173,29 @@
                     :stroke-width 1.5
                     :fill         (node->color node)
                     :stroke       base-outline-color
-                    :r            10
+                    :r            circle-radius
                     :draggable    true
                     :cursor       "pointer"
                     :on           {:mousedown drag-start
                                    :mousemove hover-start
-                                   :mouseout  (partial hover-end base-outline-color)}}]]))
+                                   :mouseout  (partial hover-end base-outline-color)
+                                   :dblclick  double-click}}]]))
      (for [{:keys [id] :as node} nodes]
        [:foreignObject {:id        (str id "-text")
-                        :width     "30%"
+                        :width     graph-width
                         :height    graph-height
                         :style     {:user-select    "none"
                                     :pointer-events "none"
                                     :display        "none"}
                         :innerHTML (rs/render
                                      [:div {:style {:background-color "white"
-                                                    :outline          "solid black"}}
+                                                    :outline          "solid black"
+                                                    :width            "fit-content"
+                                                    }}
                                       [:table {:style {:padding 10}}
                                        (->> (dissoc node :id)
                                             (sort)
-                                            (map (fn [[k v]] [:tr [:td k] [:td v]])))]])}])]))
-
-(defn get-input-value [^js element]
-  (cond
-    (= "number" (.-type element)) (when (not-empty (.-value element))
-                                    (.-valueAsNumber element))
-    :else (.-value element)))
-
-(defn gather-form-params [^js form-el]
-  (some-> (.-elements form-el)
-          into-array
-          (.reduce
-            (fn [res ^js el]
-              (let [k (some-> el .-name not-empty keyword)]
-                (cond-> res
-                        k (assoc k (get-input-value el)))))
-            {})))
+                                            (map (fn [[k v]] [:tr [:td k] [:td (with-out-str (prn v))]])))]])}])]))
 
 (defn get-data [params]
   (swap! state dissoc :error)
@@ -181,22 +206,6 @@
       (do
         (swap! state merge data)
         (init! data)))))
-
-(defn query-params []
-  (update-keys (->> (new js/URLSearchParams js/window.location.search)
-                    (.entries)
-                    (es6-iterator-seq)
-                    (js->clj)
-                    (into {}))
-               keyword))
-
-(defn set-query-params! [params]
-  (let [thing (new js/URLSearchParams js/window.location.search)]
-    (doseq [[k v] params]
-      (.set thing
-            (cond-> k (keyword? k) (name))
-            v))
-    (set! js/window.location.search (.toString thing))))
 
 (defn render [data]
   (let [{:keys [eid ancestors descendants]} (query-params)]
@@ -210,6 +219,7 @@
                 [:input {:type          "text"
                          :name          "eid"
                          :placeholder   "eid or lookup-ref"
+                         :title         "leave empty for random"
                          :default-value eid}]
                 [:input {:type          "number"
                          :name          "ancestors"
