@@ -3,6 +3,7 @@
             [kitchen-async.promise :as p]
             [lambdaisland.fetch :as fetch]
             [replicant.dom :as r]
+            [replicant.string :as rs]
             ["d3" :as d3]))
 
 (def graph-width js/window.screen.width)
@@ -142,12 +143,18 @@
                                    :mouseout  (partial hover-end base-outline-color)}}]]))
      (for [{:keys [id] :as node} nodes]
        [:foreignObject {:id        (str id "-text")
-                        :width     400
-                        :height    300
+                        :width     "30%"
+                        :height    graph-height
                         :style     {:user-select    "none"
                                     :pointer-events "none"
                                     :display        "none"}
-                        :innerHTML (str "<div>" (str/join "<br/>" (sort (map (fn [[k v]] (str k " " v)) (dissoc node :id)))) "</div>")}])]))
+                        :innerHTML (rs/render
+                                     [:div {:style {:background-color "white"
+                                                    :outline          "solid black"}}
+                                      [:table {:style {:padding 10}}
+                                       (->> (dissoc node :id)
+                                            (sort)
+                                            (map (fn [[k v]] [:tr [:td k] [:td v]])))]])}])]))
 
 (defn get-input-value [^js element]
   (cond
