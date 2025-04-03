@@ -63,9 +63,7 @@
 (defn graph-data [db {:keys [eid ancestors descendants]}]
   (let [eid    (or eid
                    (:db/id (random-entity db)))
-        entity (try (d/touch (d/entity db eid))
-                    (catch Exception e
-                      (throw (ex-info "Invalid eid" {:eid eid} e))))
+        entity (d/touch (d/entity db eid))
         edges  (get-edges db entity (or ancestors 0) (or descendants 1))]
     {:root-id (str (:db/id entity))
      :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source (str e) :target (str v) :attribute a})

@@ -12,7 +12,6 @@
 
 (defn get-el [id] (js/document.getElementById id))
 
-
 (defn query-params []
   (update-keys (->> (new js/URLSearchParams js/window.location.search)
                     (.entries)
@@ -220,15 +219,18 @@
                          :name          "eid"
                          :placeholder   "eid or lookup-ref"
                          :title         "leave empty for random"
+                         :autocomplete  "off"
                          :default-value eid}]
                 [:input {:type          "number"
                          :name          "ancestors"
                          :title         "number of ancestors"
+                         :autocomplete  "off"
                          :min           0
                          :default-value (or ancestors 0)}]
                 [:input {:type          "number"
                          :name          "descendants"
                          :title         "number of descendants"
+                         :autocomplete  "off"
                          :min           0
                          :default-value (or descendants 1)}]
                 [:button {:type "submit"}
