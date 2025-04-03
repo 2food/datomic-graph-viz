@@ -25,7 +25,7 @@
                        (.alphaDecay 0.005)
                        (.force "link" (-> (d3/forceLink edge-array)
                                           (.id (fn [d] (.-id d)))
-                                          (.distance 100)
+                                          (.distance 150)
                                           (.strength 0.1)))
                        (.force "charge" (-> (d3/forceManyBody)
                                             (.strength -50)))
@@ -46,10 +46,7 @@
                                (let [dom-node (get-el (.-id edge))
                                      [x1 y1] (bounded [(.-x (.-source edge)) (.-y (.-source edge))])
                                      [x2 y2] (bounded [(.-x (.-target edge)) (.-y (.-target edge))])]
-                                 (.setAttribute dom-node "x1" x1)
-                                 (.setAttribute dom-node "y1" y1)
-                                 (.setAttribute dom-node "x2" x2)
-                                 (.setAttribute dom-node "y2" y2)))))
+                                 (.setAttribute dom-node "d" (str/join " " ["M" x1 y1 "L" x2 y2]))))))
     (swap! state assoc
            :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
            :simulation simulation)))
@@ -90,13 +87,13 @@
     (set! (.. text-node -style -display) "block")
     (.setAttribute text-node "x" (+ x 20))
     (.setAttribute text-node "y" (+ y 20))
-    (.setAttribute this "stroke" "#000")))
+    (.setAttribute this "stroke" "black")))
 
-(defn hover-end [event]
+(defn hover-end [reset-color event]
   (let [this      (.-target event)
         text-node (get-el (str (.-id this) "-text"))]
     (set! (.. text-node -style -display) "none")
-    (.setAttribute this "stroke" "#fff")))
+    (.setAttribute this "stroke" reset-color)))
 
 (defn node->color [node]
   (str "#" (str/join (take 6 (.toString (abs (hash (keys node))) 16)))))
@@ -115,30 +112,34 @@
      [:defs
       [:marker {:id           arrow-id
                 :viewBox      "-10 -10 20 20"
-                :refX         20
+                :refX         16
                 :refY         0
-                :markerWidth  20
-                :markerHeight 20
+                :markerWidth  10
+                :markerHeight 10
                 :orient       "auto"}
-       [:path {:fill "#070707" :d "M0,-5L10,0L0,5"}]]]
-     (for [{:keys [id]} edges]
-       [:g {:stroke         "#999"
-            :stroke-opacity 0.6}
-        [:line {:id         id
-                :stroke     "#000"
-                :marker-end (str "url(#" arrow-id ")")}]])
-     (for [{:keys [id] :as node} nodes]
+       [:path {:fill "black" :d "M0,-5L10,0L0,5"}]]]
+     (for [{:keys [id attribute]} edges]
        [:g
-        [:circle {:id           id
-                  :stroke-width 1.5
-                  :fill         (node->color node)
-                  :stroke       "#fff"
-                  :r            10
-                  :draggable    true
-                  :cursor       "pointer"
-                  :on           {:mousedown drag-start
-                                 :mousemove hover-start
-                                 :mouseout  hover-end}}]])
+        [:path {:id           id
+                :stroke       "black"
+                :stroke-width 3
+                :marker-end   (str "url(#" arrow-id ")")}]
+        [:text {:dy -5}
+         [:textPath {:href (str "#" id) :startOffset "10%"}
+          (str attribute)]]])
+     (for [{:keys [id] :as node} nodes]
+       (let [base-outline-color (if (= id root-id) "red" "white")]
+         [:g
+          [:circle {:id           id
+                    :stroke-width 1.5
+                    :fill         (node->color node)
+                    :stroke       base-outline-color
+                    :r            10
+                    :draggable    true
+                    :cursor       "pointer"
+                    :on           {:mousedown drag-start
+                                   :mousemove hover-start
+                                   :mouseout  (partial hover-end base-outline-color)}}]]))
      (for [{:keys [id] :as node} nodes]
        [:foreignObject {:id        (str id "-text")
                         :width     400
