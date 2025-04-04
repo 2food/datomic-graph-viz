@@ -48,6 +48,16 @@
   [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
    (min (max (- (/ graph-height 2)) y) (/ graph-height 2))])
 
+(defn coords->path [[x1 y1] [x2 y2]]
+  (str/join " " ["M" x1 y1 "L" x2 y2]))
+
+(defn path->coords [s]
+  (->> (re-matches #"M (-?\d+\.+\d*) (-?\d+\.+\d*) L (-?\d+\.+\d*) (-?\d+\.+\d*)" s)
+       (rest)
+       (map parse-double)
+       (partition 2)
+       (mapv vec)))
+
 (defonce state (atom {}))
 
 (defn init! [{:keys [nodes edges root-id]}]
@@ -79,7 +89,7 @@
                                (let [dom-node (get-el (.-id edge))
                                      [x1 y1] (bounded [(.-x (.-source edge)) (.-y (.-source edge))])
                                      [x2 y2] (bounded [(.-x (.-target edge)) (.-y (.-target edge))])]
-                                 (.setAttribute dom-node "d" (str/join " " ["M" x1 y1 "L" x2 y2]))))))
+                                 (.setAttribute dom-node "d" (coords->path [x1 y1] [x2 y2]))))))
     (swap! state assoc
            :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
            :simulation simulation)))
@@ -90,7 +100,8 @@
      (/ (- (.-y event) (.-f ctm)) (.-d ctm))]))
 
 (defn drag-start [event]
-  (.restart (.alphaTarget (:simulation @state) 0.3))
+  (when-let [sim (:simulation @state)]
+    (.restart (.alphaTarget sim 0.3)))
   (let [dom-node (.-target event)
         node     (get-in @state [:node-array (.-id dom-node)])
         [x y] (mouse-position event)]
@@ -106,7 +117,8 @@
       (set! (.-fy node) y))))
 
 (defn drag-end [_]
-  (.alphaTarget (:simulation @state) 0)
+  (when-let [sim (:simulation @state)]
+    (.alphaTarget sim 0))
   (when-let [dragging-id (:dragging @state)]
     (let [node (get-in @state [:node-array dragging-id])]
       (swap! state dissoc :dragging)
@@ -161,7 +173,6 @@
                 :stroke-width 3
                 :marker-end   (str "url(#" arrow-id ")")}]
         [:text {:dy -5 :style {:user-select "none"
-                               :font-family "Courier New"
                                :font-size   12}}
          [:textPath {:href (str "#" id) :startOffset (+ 10 circle-radius)}
           (str attribute)]]])
@@ -189,8 +200,7 @@
                         :innerHTML (rs/render
                                      [:div {:style {:background-color "white"
                                                     :outline          "solid black"
-                                                    :width            "fit-content"
-                                                    }}
+                                                    :width            "fit-content"}}
                                       [:table {:style {:padding 10}}
                                        (->> (dissoc node :id)
                                             (sort)
@@ -209,32 +219,42 @@
 (defn render [data]
   (let [{:keys [eid ancestors descendants]} (query-params)]
     (r/render (get-el "app")
-              [:div
-               [:form#form {:on {:submit (fn [e]
-                                           (.preventDefault e)
-                                           (let [params (gather-form-params (.-target e))]
-                                             (set-query-params! params)
-                                             (get-data params)))}}
-                [:input {:type          "text"
-                         :name          "eid"
-                         :placeholder   "eid or lookup-ref"
-                         :title         "leave empty for random"
-                         :autocomplete  "off"
-                         :default-value eid}]
-                [:input {:type          "number"
-                         :name          "ancestors"
-                         :title         "number of ancestors"
-                         :autocomplete  "off"
-                         :min           0
-                         :default-value (or ancestors 0)}]
-                [:input {:type          "number"
-                         :name          "descendants"
-                         :title         "number of descendants"
-                         :autocomplete  "off"
-                         :min           0
-                         :default-value (or descendants 1)}]
-                [:button {:type "submit"}
-                 "Go!"]]
+              [:div {:style {:font-family "Courier New"}}
+               [:div {:style {:display "flex"
+                              :justify-content "space-between"}}
+                [:form#form {:on    {:submit (fn [e]
+                                               (.preventDefault e)
+                                               (let [params (gather-form-params (.-target e))]
+                                                 (set-query-params! params)
+                                                 (get-data params)))}}
+                 [:input {:type          "text"
+                          :name          "eid"
+                          :style {:font-family "inherit"}
+                          :placeholder   "eid or lookup-ref"
+                          :title         "leave empty for random"
+                          :autocomplete  "off"
+                          :default-value eid}]
+                 [:input {:type          "number"
+                          :name          "ancestors"
+                          :style {:font-family "inherit"}
+                          :title         "number of ancestors"
+                          :autocomplete  "off"
+                          :min           0
+                          :default-value (or ancestors 0)}]
+                 [:input {:type          "number"
+                          :name          "descendants"
+                          :style {:font-family "inherit"}
+                          :title         "number of descendants"
+                          :autocomplete  "off"
+                          :min           0
+                          :default-value (or descendants 1)}]
+                 [:button {:type "submit"
+                           :style {:font-family "inherit"}}
+                  "Go!"]]
+                (when (:nodes data)
+                  [:div {:style {:padding 2}}
+                   [:span {:style {:padding 5}} (str "Nodes: " (count (:nodes data)))]
+                   [:span {:style {:padding 5}} (str "Edges: " (count (:edges data)))]])]
                (when (:error data)
                  [:p {:style {:color "red"}} (:error data)])
                [:div#graph-container (force-directed-graph data)]])))
