@@ -3,14 +3,20 @@
             [clojure.java.io :as io]
             [cognitect.transit :as transit]
             [datomic.api :as d]
+            [mount.core :refer [defstate] :as m]
             [org.httpkit.server :as hk-server]
-            [mount.core :refer [defstate]]
-            [ring.middleware.params :as ring-params]
-            [ring.middleware.keyword-params :as ring-keyword-params])
+            [ring.middleware.keyword-params :as ring-keyword-params]
+            [ring.middleware.params :as ring-params])
   (:import (java.io ByteArrayOutputStream)))
 
 (defstate conn
-  :start (d/connect "datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db"))
+  :start (let [{:keys [conn-str using-default-conn-str]} (m/args)]
+           (try (d/connect conn-str)
+                (catch Exception e
+                  (when using-default-conn-str
+                    (binding [*out* *err*]
+                      (println "Make sure you've started a datomic transactor with `bb mbrainz-demo`")))
+                  (throw e)))))
 
 (defn get-node [db entity]
   (->> (d/touch entity)
@@ -78,17 +84,17 @@
                                     :id (str id)))))}))
 
 (comment
-  (def db (d/db conn))
-  (d/q '[:find (pull ?a [:*]) .
-         :where [?a :artist/name "John Lennon"]]
-       db)
+ (def db (d/db conn))
+ (d/q '[:find (pull ?a [:*]) .
+        :where [?a :artist/name "John Lennon"]]
+      db)
 
-  ; "Joan Manuel Serrat" 17592186076292
+ ; "Joan Manuel Serrat" 17592186076292
 
-  (get-node db (d/entity db 527765581346058))
-  (get-edges db (d/entity db 527765581346058) 0 1)
-  (d/touch (d/entity db :artist/gid))
-  )
+ (get-node db (d/entity db 527765581346058))
+ (get-edges db (d/entity db 527765581346058) 0 1)
+ (d/touch (d/entity db :artist/gid))
+ )
 
 (defn ensure-long [x]
   (cond-> x (string? x) (parse-long)))
@@ -125,6 +131,7 @@
       (ring-params/wrap-params)))
 
 (defstate my-server
-  :start (hk-server/run-server app {:port                 8080
-                                    :legacy-return-value? false})
+  :start (let [{:keys [port]} (m/args)]
+           (hk-server/run-server app {:port                 port
+                                      :legacy-return-value? false}))
   :stop (hk-server/server-stop! my-server))

@@ -30,7 +30,7 @@
   (time (let [stop-res (m/stop)]
           (repl/refresh)
           (merge stop-res
-                 (m/start (cond-> (m/with-args {:env :dev})
+                 (m/start (cond-> (m/with-args {})
                             (not-empty states) (m/only states)))))))
 
 (defn repl

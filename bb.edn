@@ -1,7 +1,8 @@
 {:deps  {io.github.filipesilva/datomic-pro-manager {:git/url "https://github.com/filipesilva/datomic-pro-manager"
                                                     :git/tag "v1.0.0"
                                                     :git/sha "abe0a40"}}
- :paths   ["scripts"]
+ :paths ["scripts"]
  :tasks {:requires    ([tasks :as t])
          clean        (t/clean)
-         mbrainz-demo (t/mbrainz-demo)}}
+         mbrainz-demo (t/mbrainz-demo)
+         start        (t/start)}}
