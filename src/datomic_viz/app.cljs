@@ -6,8 +6,8 @@
             [replicant.string :as rs]
             ["d3" :as d3]))
 
-(def graph-width js/window.screen.width)
-(def graph-height (* js/window.screen.height 0.75))
+(def graph-width js/window.innerWidth)
+(def graph-height (- js/window.innerHeight 40))
 (def circle-radius 10)
 
 (defn get-el [id] (js/document.getElementById id))
@@ -81,14 +81,14 @@
     (.on simulation "tick" (fn []
                              (doseq [node node-array]
                                (let [dom-node (get-el (.-id node))
-                                     [x y] (bounded [(.-x node) (.-y node)])]
+                                     [x y] [(.-x node) (.-y node)]]
 
                                  (.setAttribute dom-node "cx" x)
                                  (.setAttribute dom-node "cy" y)))
                              (doseq [edge edge-array]
                                (let [dom-node (get-el (.-id edge))
-                                     [x1 y1] (bounded [(.-x (.-source edge)) (.-y (.-source edge))])
-                                     [x2 y2] (bounded [(.-x (.-target edge)) (.-y (.-target edge))])]
+                                     [x1 y1] [(.-x (.-source edge)) (.-y (.-source edge))]
+                                     [x2 y2] [(.-x (.-target edge)) (.-y (.-target edge))]]
                                  (.setAttribute dom-node "d" (coords->path [x1 y1] [x2 y2]))))))
     (swap! state assoc
            :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
