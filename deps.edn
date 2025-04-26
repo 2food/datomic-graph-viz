@@ -1,15 +1,16 @@
 {:paths ["src" "resources"]
  :deps  {
-         com.datomic/peer       {:mvn/version "1.0.7277"}
-         http-kit/http-kit      {:mvn/version "2.7.0"}
-         lambdaisland/fetch     {:mvn/version "1.5.83"}
-         mount/mount            {:mvn/version "0.1.21"}
-         no.cjohansen/replicant {:mvn/version "2025.03.02"}
-         org.babashka/cli       {:mvn/version "0.8.62"}
-         org.slf4j/slf4j-nop    {:mvn/version "2.0.17"}
-         org.xerial/sqlite-jdbc {:mvn/version "3.49.1.0"}
-         ring/ring-core         {:mvn/version "1.13.1"}
-         thheller/shadow-cljs   {:mvn/version "2.20.1"}
+         com.datomic/peer          {:mvn/version "1.0.7277"}
+         http-kit/http-kit         {:mvn/version "2.7.0"}
+         lambdaisland/fetch        {:mvn/version "1.5.83"}
+         mount/mount               {:mvn/version "0.1.21"}
+         no.cjohansen/replicant    {:mvn/version "2025.03.02"}
+         org.babashka/cli          {:mvn/version "0.8.62"}
+         org.postgresql/postgresql {:mvn/version "42.7.4"}
+         org.slf4j/slf4j-nop       {:mvn/version "2.0.17"}
+         org.xerial/sqlite-jdbc    {:mvn/version "3.49.1.0"}
+         ring/ring-core            {:mvn/version "1.13.1"}
+         thheller/shadow-cljs      {:mvn/version "2.20.1"}
          }
  :aliases
  {:dev

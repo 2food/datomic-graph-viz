@@ -3,6 +3,6 @@
                                                     :git/sha "abe0a40"}}
  :paths ["scripts"]
  :tasks {:requires    ([tasks :as t])
-         clean        (t/clean)
-         mbrainz-demo (t/mbrainz-demo)
-         start        (t/start)}}
+         clean        t/clean
+         mbrainz-demo t/mbrainz-demo
+         start        t/start}}
