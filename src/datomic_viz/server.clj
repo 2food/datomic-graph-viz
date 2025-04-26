@@ -17,28 +17,32 @@
        (filter (fn [[k v]] (not= :db.type/ref (:db/valueType (d/entity db k)))))
        (into {})))
 
+(def ^:dynamic *edges-per-level* 100)
+
 (defn get-ancestors [db entity levels]
   (if (>= 0 levels)
     []
-    (let [edges (d/q '[:find ?e ?attr ?v
-                       :in $ ?v
-                       :where
-                       [?e ?a ?v]
-                       [?a :db/ident ?attr]]
-                     db (:db/id entity))]
+    (let [edges (->> (d/q '[:find ?e ?attr ?v
+                            :in $ ?v
+                            :where
+                            [?e ?a ?v]
+                            [?a :db/ident ?attr]]
+                          db (:db/id entity))
+                     (take *edges-per-level*))]
       (set (apply concat edges
                   (mapv (fn [[e _ _]] (get-ancestors db (d/entity db e) (dec levels))) edges))))))
 
 (defn get-descendants [db entity levels]
   (if (>= 0 levels)
     []
-    (let [edges (d/q '[:find ?e ?attr ?v
-                       :in $ ?e
-                       :where
-                       [?e ?a ?v]
-                       [?a :db/valueType :db.type/ref]
-                       [?a :db/ident ?attr]]
-                     db (:db/id entity))]
+    (let [edges (->> (d/q '[:find ?e ?attr ?v
+                            :in $ ?e
+                            :where
+                            [?e ?a ?v]
+                            [?a :db/valueType :db.type/ref]
+                            [?a :db/ident ?attr]]
+                          db (:db/id entity))
+                     (take *edges-per-level*))]
       (set (apply concat edges
                   (mapv (fn [[_ _ v]] (get-descendants db (d/entity db v) (dec levels))) edges))))))
 
@@ -78,6 +82,8 @@
   (d/q '[:find (pull ?a [:*]) .
          :where [?a :artist/name "John Lennon"]]
        db)
+
+  ; "Joan Manuel Serrat" 17592186076292
 
   (get-node db (d/entity db 527765581346058))
   (get-edges db (d/entity db 527765581346058) 0 1)
