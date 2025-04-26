@@ -10,7 +10,7 @@
   (:import (java.io ByteArrayOutputStream)))
 
 (defstate conn
-  :start (d/connect "datomic:dev://localhost:4334/mbrainz-1968-1973"))
+  :start (d/connect "datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db"))
 
 (defn get-node [db entity]
   (->> (d/touch entity)

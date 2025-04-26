@@ -8,3 +8,11 @@ node_modules
 .clj-kondo/.cache
 /.clj-kondo/imports/
 *.iml
+out/
+
+# dpm datomic-pro download
+/datomic-pro
+# dpm sqlite db
+/storage
+# dpm backups
+/backups
