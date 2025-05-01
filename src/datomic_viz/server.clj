@@ -15,7 +15,10 @@
                 (catch Exception e
                   (when using-default-conn-str
                     (binding [*out* *err*]
-                      (println "Make sure you've started a datomic transactor with `bb mbrainz-demo`")))
+                      (prn)
+                      (println "Hello there! I see you haven't given a conn-str, so it will default to the mbrainz demo string.")
+                      (println "Make sure you've started the datomic transactor first with `bb mbrainz-demo`")
+                      (prn)))
                   (throw e)))))
 
 (defn get-node [db entity]
