@@ -1,5 +1,6 @@
 (ns datomic-viz.server
-  (:require [clojure.edn :as edn]
+  (:require [bling.core :as bling]
+            [clojure.edn :as edn]
             [clojure.java.io :as io]
             [cognitect.transit :as transit]
             [datomic.api :as d]
@@ -11,7 +12,10 @@
 
 (defstate conn
   :start (let [{:keys [conn-str]} (m/args)]
-           (d/connect conn-str)))
+           (try (d/connect conn-str)
+                (catch Exception e
+                  (bling/callout {:type :error} "Couldn't connect to transactor. Make sure it's running and that the :conn-str is correct.")
+                  (throw e)))))
 
 (defn get-node [db entity]
   (->> (d/touch entity)
