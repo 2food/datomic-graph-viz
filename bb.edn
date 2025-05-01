@@ -1,8 +1,15 @@
 {:deps  {io.github.filipesilva/datomic-pro-manager {:git/url "https://github.com/filipesilva/datomic-pro-manager"
                                                     :git/tag "v1.0.0"
-                                                    :git/sha "abe0a40"}}
+                                                    :git/sha "abe0a40"}
+         io.github.paintparty/bling                {:mvn/version "0.6.0"}}
  :paths ["scripts"]
- :tasks {:requires    ([tasks :as t])
-         clean        t/clean
-         mbrainz-demo t/mbrainz-demo
-         start        t/start}}
+ :tasks {:requires               ([tasks :as t])
+         clean                   t/clean
+         mbrainz-demo-transactor t/mbrainz-demo-transactor
+         cljs:npm-install        (t/run "npm i")
+         cljs:compile            {:depends [cljs:npm-install]
+                                  :task    (t/run "npx shadow-cljs compile app")}
+         mbrainz-demo            {:depends [cljs:compile]
+                                  :task    t/mbrainz-demo}
+         start                   {:depends [cljs:compile]
+                                  :task    t/start}}}

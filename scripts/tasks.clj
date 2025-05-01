@@ -1,7 +1,14 @@
 (ns tasks
   (:require [babashka.fs :as fs]
+            [babashka.process :as p]
+            [bling.core :as bling]
             [clojure.string :as str]
             [filipesilva.datomic-pro-manager :as dpm]))
+
+(defn run [& ss]
+  (let [s (str/join " " ss)]
+    (bling/callout {:colorway :purple} s)
+    (p/shell s)))
 
 (defn clean []
   (dpm/clean nil)
@@ -10,7 +17,7 @@
   (dpm/run "rm -rf ./resources/public/js")
   nil)
 
-(defn mbrainz-demo []
+(defn mbrainz-demo-transactor []
   (dpm/download nil)
   (if (fs/exists? "backups/mbrainz")
     (dpm/info "Mbrainz backup already downloaded to ./backups")
@@ -23,11 +30,14 @@
         (dpm/restore {:opts {:db-name "mbrainz"}})))
   (dpm/up nil))
 
+(defn mbrainz-demo []
+  (if (fs/exists? "storage")
+    (run "clj -M:run --conn-str datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db")
+    (bling/callout {:type :error}
+                   "Hello there! Make sure you've started the transactor first with `bb mbrainz-demo-transactor`.")))
+
 (defn start [& args]
-  (when-not (fs/exists? "resources/public/js/main.js")
-    (dpm/run "npm i")
-    (dpm/run "npx shadow-cljs compile app"))
-  (dpm/run (str/join " " (cons "clj -M:run" args))))
+  (run (str/join " " (cons "clj -M:run" args))))
 
 (comment
  (clean)

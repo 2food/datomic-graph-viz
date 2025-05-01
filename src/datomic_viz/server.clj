@@ -10,16 +10,8 @@
   (:import (java.io ByteArrayOutputStream)))
 
 (defstate conn
-  :start (let [{:keys [conn-str using-default-conn-str]} (m/args)]
-           (try (d/connect conn-str)
-                (catch Exception e
-                  (when using-default-conn-str
-                    (binding [*out* *err*]
-                      (prn)
-                      (println "Hello there! I see you haven't given a conn-str, so it will default to the mbrainz demo string.")
-                      (println "Make sure you've started the datomic transactor first with `bb mbrainz-demo`")
-                      (prn)))
-                  (throw e)))))
+  :start (let [{:keys [conn-str]} (m/args)]
+           (d/connect conn-str)))
 
 (defn get-node [db entity]
   (->> (d/touch entity)
