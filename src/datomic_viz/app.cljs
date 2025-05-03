@@ -38,11 +38,11 @@
   (some-> (.-elements form-el)
           into-array
           (.reduce
-            (fn [res ^js el]
-              (let [k (some-> el .-name not-empty keyword)]
-                (cond-> res
-                        k (assoc k (get-input-value el)))))
-            {})))
+           (fn [res ^js el]
+             (let [k (some-> el .-name not-empty keyword)]
+               (cond-> res
+                 k (assoc k (get-input-value el)))))
+           {})))
 
 (defn bounded [[x y]]
   [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
@@ -69,7 +69,7 @@
                        (.alphaDecay 0.005)
                        (.force "link" (-> (d3/forceLink edge-array)
                                           (.id (fn [d] (.-id d)))
-                                          (.distance (fn [^js d] (+ 20 (* 2 circle-radius) (* 8 (count (.-attribute d))))))
+                                          (.distance (fn [^js d] (+ 30 (* 2 circle-radius) (* 8 (count (.-attribute d))))))
                                           (.strength 0.1)))
                        (.force "charge" (-> (d3/forceManyBody)
                                             (.strength -50)))
@@ -86,10 +86,16 @@
                                  (.setAttribute dom-node "cx" x)
                                  (.setAttribute dom-node "cy" y)))
                              (doseq [edge edge-array]
-                               (let [dom-node (get-el (.-id edge))
+                               (let [dom-edge       (get-el (.-id edge))
+                                     rev-dom-edge   (get-el (str (.-id edge) "-reversed"))
+                                     attribute-text (get-el (str (.-id edge) "-attribute"))
                                      [x1 y1] [(.-x (.-source edge)) (.-y (.-source edge))]
-                                     [x2 y2] [(.-x (.-target edge)) (.-y (.-target edge))]]
-                                 (.setAttribute dom-node "d" (coords->path [x1 y1] [x2 y2]))))))
+                                     [x2 y2] [(.-x (.-target edge)) (.-y (.-target edge))]
+                                     reversed?      (< x2 x1)]
+                                 (.setAttribute dom-edge "d" (coords->path [x1 y1] [x2 y2]))
+                                 (.setAttribute rev-dom-edge "d" (coords->path [x2 y2] [x1 y1]))
+                                 (.setAttribute attribute-text "href" (str "#" (cond-> (.-id edge)
+                                                                                 reversed? (str "-reversed"))))))))
     (swap! state assoc
            :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
            :simulation simulation)))
@@ -172,9 +178,10 @@
                 :stroke       "black"
                 :stroke-width 3
                 :marker-end   (str "url(#" arrow-id ")")}]
+        [:path {:id (str id "-reversed")}]
         [:text {:dy -5 :style {:user-select "none"
                                :font-size   12}}
-         [:textPath {:href (str "#" id) :startOffset (+ 10 circle-radius)}
+         [:textPath {:id (str id "-attribute") :href (str "#" id) :startOffset (+ 20 circle-radius)}
           (str attribute)]]])
      (for [{:keys [id] :as node} nodes]
        (let [base-outline-color (if (= id root-id) "red" "white")]
@@ -198,13 +205,13 @@
                                     :pointer-events "none"
                                     :display        "none"}
                         :innerHTML (rs/render
-                                     [:div {:style {:background-color "white"
-                                                    :outline          "solid black"
-                                                    :width            "fit-content"}}
-                                      [:table {:style {:padding 10}}
-                                       (->> (dissoc node :id)
-                                            (sort)
-                                            (map (fn [[k v]] [:tr [:td k] [:td (with-out-str (prn v))]])))]])}])]))
+                                    [:div {:style {:background-color "white"
+                                                   :outline          "solid black"
+                                                   :width            "fit-content"}}
+                                     [:table {:style {:padding 10}}
+                                      (->> (dissoc node :id)
+                                           (sort)
+                                           (map (fn [[k v]] [:tr [:td k] [:td (with-out-str (prn v))]])))]])}])]))
 
 (defn get-data [params]
   (swap! state dissoc :error)
@@ -220,35 +227,35 @@
   (let [{:keys [eid ancestors descendants]} (query-params)]
     (r/render (get-el "app")
               [:div {:style {:font-family "Courier New"}}
-               [:div {:style {:display "flex"
+               [:div {:style {:display         "flex"
                               :justify-content "space-between"}}
-                [:form#form {:on    {:submit (fn [e]
-                                               (.preventDefault e)
-                                               (let [params (gather-form-params (.-target e))]
-                                                 (set-query-params! params)
-                                                 (get-data params)))}}
+                [:form#form {:on {:submit (fn [e]
+                                            (.preventDefault e)
+                                            (let [params (gather-form-params (.-target e))]
+                                              (set-query-params! params)
+                                              (get-data params)))}}
                  [:input {:type          "text"
                           :name          "eid"
-                          :style {:font-family "inherit"}
+                          :style         {:font-family "inherit"}
                           :placeholder   "eid or lookup-ref"
                           :title         "leave empty for random"
                           :autocomplete  "off"
                           :default-value eid}]
                  [:input {:type          "number"
                           :name          "ancestors"
-                          :style {:font-family "inherit"}
+                          :style         {:font-family "inherit"}
                           :title         "number of ancestors"
                           :autocomplete  "off"
                           :min           0
                           :default-value (or ancestors 1)}]
                  [:input {:type          "number"
                           :name          "descendants"
-                          :style {:font-family "inherit"}
+                          :style         {:font-family "inherit"}
                           :title         "number of descendants"
                           :autocomplete  "off"
                           :min           0
                           :default-value (or descendants 1)}]
-                 [:button {:type "submit"
+                 [:button {:type  "submit"
                            :style {:font-family "inherit"}}
                   "Go!"]]
                 (when (:nodes data)
