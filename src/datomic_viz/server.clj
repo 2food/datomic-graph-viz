@@ -58,10 +58,9 @@
               :in $
               :where
               [?a :db/valueType :db.type/ref]
-              [?a :db/ident ?attr]
-              [?e ?a ?v]
-              (not [?e :db/valueType])
-              (not [?e :db/ident :db.part/db])]
+              (not [?a :db/ident :db.install/partition])
+              (or [?e ?a _] [_ ?a ?e])
+              (not [?e :db/valueType])]
             db)
        (first)
        (d/entity db)
