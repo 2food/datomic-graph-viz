@@ -97,7 +97,7 @@
                                  (.setAttribute attribute-text "href" (str "#" (cond-> (.-id edge)
                                                                                  reversed? (str "-reversed"))))))))
     (swap! state assoc
-           :node-array (into {} (map (fn [node] [(.-id node) node]) node-array))
+           :node-map (into {} (map (fn [node] [(.-id node) node]) node-array))
            :simulation simulation)))
 
 (defn mouse-position [event]
@@ -105,11 +105,14 @@
     [(/ (- (.-x event) (.-e ctm)) (.-a ctm))
      (/ (- (.-y event) (.-f ctm)) (.-d ctm))]))
 
+(defn mouse-movement [event]
+  [(.-movementX event) (.-movementY event)])
+
 (defn drag-start [event]
   (when-let [sim (:simulation @state)]
     (.restart (.alphaTarget sim 0.3)))
   (let [dom-node (.-target event)
-        node     (get-in @state [:node-array (.-id dom-node)])
+        node     (get-in @state [:node-map (.-id dom-node)])
         [x y] (mouse-position event)]
     (swap! state assoc :dragging (.-id dom-node))
     (set! (.-fx node) x)
@@ -117,19 +120,36 @@
 
 (defn drag [event]
   (when-let [dragging-id (:dragging @state)]
-    (let [node (get-in @state [:node-array dragging-id])
-          [x y] (mouse-position event)]
-      (set! (.-fx node) x)
-      (set! (.-fy node) y))))
+    (if (= :all dragging-id)
+      (let [[dx dy] (mouse-movement event)]
+        (doseq [node (vals (:node-map @state))]
+          (set! (.-fx node) (+ (.-fx node) dx))
+          (set! (.-fy node) (+ (.-fy node) dy))))
+      (let [[x y] (mouse-position event)]
+        (let [node (get-in @state [:node-map dragging-id])]
+          (set! (.-fx node) x)
+          (set! (.-fy node) y))))))
 
 (defn drag-end [_]
-  (when-let [sim (:simulation @state)]
-    (.alphaTarget sim 0))
-  (when-let [dragging-id (:dragging @state)]
-    (let [node (get-in @state [:node-array dragging-id])]
-      (swap! state dissoc :dragging)
-      (set! (.-fx node) nil)
-      (set! (.-fy node) nil))))
+  (let [dragging-id (:dragging @state)]
+    (when-let [sim (:simulation @state)]
+      (.alphaTarget sim 0))
+    (if (= :all dragging-id)
+      (doseq [node (vals (:node-map @state))]
+        (set! (.-fx node) nil)
+        (set! (.-fy node) nil))
+      (when-let [node (get-in @state [:node-map dragging-id])]
+        (set! (.-fx node) nil)
+        (set! (.-fy node) nil)))
+    (swap! state dissoc :dragging)))
+
+(defn drag-all-start [_]
+  (when-not (:dragging @state)
+    (let [nodes (vals (:node-map @state))]
+      (swap! state assoc :dragging :all)
+      (doseq [node nodes]
+        (set! (.-fx node) (.-x node))
+        (set! (.-fy node) (.-y node))))))
 
 (defn hover-start [event]
   (let [this      (.-target event)
@@ -161,6 +181,7 @@
                               graph-width graph-height])
       :style   {:max-width "100%" :height "auto"}
       :on      {:mousemove  drag
+                :mousedown  drag-all-start
                 :mouseup    drag-end
                 :mouseleave drag-end}}
      [:defs
