@@ -1,0 +1,7 @@
+{:coerce     {:port                :long
+              :max-edges-per-level :long}
+ :exec-args  {:port                1234
+              :max-edges-per-level 100}
+ :args->opts [:conn-str]
+ :require    [:conn-str]
+ :restrict   [:conn-str :port :max-edges-per-level]}

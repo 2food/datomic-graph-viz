@@ -2,7 +2,8 @@
   (:require [babashka.cli :as cli]
             [bling.core :as bling]
             [datomic-viz.server]
-            [mount.core :as m])
+            [mount.core :as m]
+            [clojure.edn :as edn])
   (:import (java.awt Desktop)
            (java.net URI)))
 
@@ -11,14 +12,7 @@
        (catch Exception _
          (println (str "Could not automatically open URL.")))))
 
-(def cli-opts {:coerce     {:port                :long
-                            :max-edges-per-level :long}
-               :exec-args  {:port                1234
-                            :max-edges-per-level 100}
-               :args->opts [:conn-str]
-               :require    [:conn-str]
-               :restrict   [:conn-str :port :max-edges-per-level]})
-
+(def cli-opts (edn/read-string (slurp "cli-opts.edn")))
 
 (defn -main [& args]
   (let [args (cli/parse-opts args cli-opts)]

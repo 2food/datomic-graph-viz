@@ -1,7 +1,9 @@
 (ns tasks
-  (:require [babashka.fs :as fs]
+  (:require [babashka.cli :as cli]
+            [babashka.fs :as fs]
             [babashka.process :as p]
             [bling.core :as bling]
+            [clojure.edn :as edn]
             [clojure.string :as str]
             [filipesilva.datomic-pro-manager :as dpm]))
 
@@ -30,14 +32,26 @@
         (dpm/restore {:opts {:db-name "mbrainz"}})))
   (dpm/up nil))
 
+(def cli-opts (edn/read-string (slurp "cli-opts.edn")))
+(defn get-jdbc-name [args]
+  (let [{:keys [conn-str]} (cli/parse-opts args cli-opts)]
+    (when (str/includes? conn-str "jdbc")
+      (str ":" (->> (str/split conn-str #":")
+                    (drop-while #(not (str/ends-with? % "jdbc")))
+                    (second))))))
+(defn start [& args]
+  (let [jdbc-name (get-jdbc-name args)]
+    (->> (cons (cond-> "clj -M:run"
+                 jdbc-name (str jdbc-name))
+               args)
+         (str/join " ")
+         (run))))
+
 (defn mbrainz-demo []
   (if (fs/exists? "storage")
-    (run "clj -M:run \"datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db\"")
+    (start "datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db")
     (bling/callout {:type :error}
                    "Hello there! Make sure you've started the transactor first with `bb mbrainz-demo-transactor`.")))
-
-(defn start [& args]
-  (run (str/join " " (cons "clj -M:run" args))))
 
 (comment
  (clean)
