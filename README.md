@@ -44,5 +44,6 @@ The eid (or lookup-ref) input sets the root node of the graph. This is automatic
 
 The ancestor and descendant inputs decide how many levels of nodes are fetched in their respective directions. Limit these to control which nodes you're interested in seeing. Note that ancestors of descendants aren't fetched, and neither are descendants of ancestors. Navigate to these nodes to see all their ancestors and descendants.
 
-
+#### Visuals
+Nodes are colored semi-randomly by hashing their set of attributes. That means that nodes with the same attributes have the same color. Note that similar colors does not mean that their attribute sets are similar. Likewise, completely different nodes can have very similar colors, and may even collide.    
 
