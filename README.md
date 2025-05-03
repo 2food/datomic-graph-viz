@@ -5,6 +5,19 @@
 
 
 ### Getting started 
+
+#### With the mbrainz sample database
+To explore the mbrainz sample database yourself, some utilities are provided.
+Run:
+```shell
+bb mbrainz-demo-transactor
+```
+When the transactor is running, run this in another terminal: 
+```shell
+bb mbrainz-demo
+```
+And you're off!
+
 #### With your own datomic database 
 To run against your own datomic database, simply run 
 ```shell
@@ -19,15 +32,17 @@ Available options to `bb start` are:
 --conn-str             the datomic connection string to use
 ```
 
+### Usage 
 
-#### With the mbrainz sample database
-To explore the mbrainz sample database yourself, some utilities are provided.
-Run:
-```shell
-bb mbrainz-demo-transactor
-```
-When the transactor is running, run this in another terminal: 
-```shell
-bb mbrainz-demo
-```
-And you're off!
+#### Mouse actions 
+You can drag nodes around, and grab the background to drag the whole graph around. 
+
+Double clicking a node navigates to that node. This creates a new graph with that entity as the root node.
+
+#### Form input 
+The eid (or lookup-ref) input sets the root node of the graph. This is automatically set when navigating with double clicks. Leave it empty to get a random entity, which is what happens on the first page load. (The random selection excludes entities without any refs to or from it).
+
+The ancestor and descendant inputs decide how many levels of nodes are fetched in their respective directions. Limit these to control which nodes you're interested in seeing. Note that ancestors of descendants aren't fetched, and neither are descendants of ancestors. Navigate to these nodes to see all their ancestors and descendants.
+
+
+
