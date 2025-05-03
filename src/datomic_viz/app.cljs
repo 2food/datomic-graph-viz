@@ -44,19 +44,8 @@
                  k (assoc k (get-input-value el)))))
            {})))
 
-(defn bounded [[x y]]
-  [(min (max (- (/ graph-width 2)) x) (/ graph-width 2))
-   (min (max (- (/ graph-height 2)) y) (/ graph-height 2))])
-
 (defn coords->path [[x1 y1] [x2 y2]]
   (str/join " " ["M" x1 y1 "L" x2 y2]))
-
-(defn path->coords [s]
-  (->> (re-matches #"M (-?\d+\.+\d*) (-?\d+\.+\d*) L (-?\d+\.+\d*) (-?\d+\.+\d*)" s)
-       (rest)
-       (map parse-double)
-       (partition 2)
-       (mapv vec)))
 
 (defonce state (atom {}))
 
