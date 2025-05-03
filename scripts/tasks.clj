@@ -32,7 +32,7 @@
 
 (defn mbrainz-demo []
   (if (fs/exists? "storage")
-    (run "clj -M:run --conn-str datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db")
+    (run "clj -M:run \"datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db\"")
     (bling/callout {:type :error}
                    "Hello there! Make sure you've started the transactor first with `bb mbrainz-demo-transactor`.")))
 

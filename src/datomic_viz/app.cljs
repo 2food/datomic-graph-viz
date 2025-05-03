@@ -253,8 +253,9 @@
                   "Go!"]]
                 (when (:nodes data)
                   [:div {:style {:padding 2}}
-                   [:span {:style {:padding 5}} (str "Nodes: " (count (:nodes data)))]
-                   [:span {:style {:padding 5}} (str "Edges: " (count (:edges data)))]])]
+                   [:span {:style {:padding 10}} (str "Max edges per level: " (:max-edges-per-level data))]
+                   [:span {:style {:padding 10}} (str "Nodes: " (count (:nodes data)))]
+                   [:span {:style {:padding 10}} (str "Edges: " (count (:edges data)))]])]
                (when (:error data)
                  [:p {:style {:color "red"}} (:error data)])
                [:div#graph-container (force-directed-graph data)]])))

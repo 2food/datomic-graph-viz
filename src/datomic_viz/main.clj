@@ -4,9 +4,11 @@
             [datomic-viz.server]
             [mount.core :as m]))
 
-(def cli-opts {:coerce     {:port :long}
+(def cli-opts {:coerce     {:port                :long
+                            :max-edges-per-level :long}
+               :exec-args  {:port                1234
+                            :max-edges-per-level 100}
                :args->opts [:conn-str]
-               :exec-args  {:port 1234}
                :require    [:conn-str]})
 
 (defn -main [& args]

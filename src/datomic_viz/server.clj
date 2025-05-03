@@ -22,8 +22,6 @@
        (filter (fn [[k v]] (not= :db.type/ref (:db/valueType (d/entity db k)))))
        (into {})))
 
-(def ^:dynamic *edges-per-level* 100)
-
 (defn get-ancestors [db entity levels]
   (if (>= 0 levels)
     []
@@ -33,7 +31,7 @@
                             [?e ?a ?v]
                             [?a :db/ident ?attr]]
                           db (:db/id entity))
-                     (take *edges-per-level*))]
+                     (take (:max-edges-per-level (m/args))))]
       (set (apply concat edges
                   (mapv (fn [[e _ _]] (get-ancestors db (d/entity db e) (dec levels))) edges))))))
 
@@ -47,7 +45,7 @@
                             [?a :db/valueType :db.type/ref]
                             [?a :db/ident ?attr]]
                           db (:db/id entity))
-                     (take *edges-per-level*))]
+                     (take (:max-edges-per-level (m/args))))]
       (set (apply concat edges
                   (mapv (fn [[_ _ v]] (get-descendants db (d/entity db v) (dec levels))) edges))))))
 
@@ -74,13 +72,14 @@
                    (:db/id (random-entity db)))
         entity (d/touch (d/entity db eid))
         edges  (get-edges db entity (or ancestors 0) (or descendants 1))]
-    {:root-id (str (:db/id entity))
-     :edges   (mapv (fn [[e a v]] {:id (str [e a v]) :source (str e) :target (str v) :attribute a})
-                    edges)
-     :nodes   (->> (conj (set (mapcat (juxt first last) edges))
-                         (:db/id entity))
-                   (mapv (fn [id] (assoc (get-node db (d/entity db id))
-                                    :id (str id)))))}))
+    {:root-id             (str (:db/id entity))
+     :max-edges-per-level (:max-edges-per-level (m/args))
+     :edges               (mapv (fn [[e a v]] {:id (str [e a v]) :source (str e) :target (str v) :attribute a})
+                                edges)
+     :nodes               (->> (conj (set (mapcat (juxt first last) edges))
+                                     (:db/id entity))
+                               (mapv (fn [id] (assoc (get-node db (d/entity db id))
+                                                :id (str id)))))}))
 
 (comment
  (def db (d/db conn))
@@ -88,7 +87,8 @@
         :where [?a :artist/name "John Lennon"]]
       db)
 
- ; "Joan Manuel Serrat" 17592186076292
+ ; "John Lennon" 527765581346058
+ ; "Knutsen & Ludvigsen" 598134325523864
 
  (get-node db (d/entity db 527765581346058))
  (get-edges db (d/entity db 527765581346058) 0 1)

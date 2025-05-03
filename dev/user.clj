@@ -1,5 +1,6 @@
 (ns user
   (:require [clojure.tools.namespace.repl :as repl]
+            [datomic-viz.main]
             [mount.core :as m]
             [shadow.cljs.devtools.api :as shadow]
             [shadow.cljs.devtools.server :as server]))
@@ -30,7 +31,8 @@
   (time (let [stop-res (m/stop)]
           (repl/refresh)
           (merge stop-res
-                 (m/start (cond-> (m/with-args {})
+                 (m/start (cond-> (m/with-args (assoc (:exec-args datomic-viz.main/cli-opts)
+                                                 :conn-str "datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db"))
                             (not-empty states) (m/only states)))))))
 
 (defn repl
@@ -39,9 +41,9 @@
   (shadow/watch build-id))
 
 (comment
-  (repl :app)
+ (repl :app)
 
-  (server/stop!)
+ (server/stop!)
 
-  (shadow/nrepl-select :app)
-  )
+ (shadow/nrepl-select :app)
+ )
