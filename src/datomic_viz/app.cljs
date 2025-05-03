@@ -240,7 +240,7 @@
                           :title         "number of ancestors"
                           :autocomplete  "off"
                           :min           0
-                          :default-value (or ancestors 0)}]
+                          :default-value (or ancestors 1)}]
                  [:input {:type          "number"
                           :name          "descendants"
                           :style {:font-family "inherit"}
