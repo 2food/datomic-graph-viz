@@ -71,7 +71,7 @@
   (let [eid    (or eid
                    (:db/id (random-entity db)))
         entity (d/touch (d/entity db eid))
-        edges  (get-edges db entity (or ancestors 0) (or descendants 1))]
+        edges  (get-edges db entity (or ancestors 1) (or descendants 1))]
     {:root-id             (str (:db/id entity))
      :max-edges-per-level (:max-edges-per-level (m/args))
      :edges               (mapv (fn [[e a v]] {:id (str [e a v]) :source (str e) :target (str v) :attribute a})
