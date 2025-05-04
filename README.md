@@ -5,10 +5,12 @@
 
 
 ### Getting started 
+Prerequisites: 
+- [babashka](https://github.com/babashka/babashka)
+- [Clojure cli](https://clojure.org/reference/clojure_cli)
 
 #### With the mbrainz sample database
-To explore the mbrainz sample database yourself, some utilities are provided.
-Run:
+To explore the mbrainz sample database yourself, download and start the transactor with:
 ```shell
 bb mbrainz-demo-transactor
 ```
@@ -19,17 +21,19 @@ bb mbrainz-demo
 And you're off!
 
 #### With your own datomic database 
+Depending on your storage service, you might need to add a driver dependency. See [JDBC Drivers](#jdbc-drivers).
+
 To run against your own datomic database, simply run 
 ```shell
 bb start <your-datomic-connection-string>
 ```
-Then open the printed link to get started.
+If your browser does not open on it's own, use the provided link (http://localhost:1234 by default).
 
 Available options to `bb start` are: 
 ```
+--conn-str             the datomic connection string to use, can be given as a positional argument
 --port                 the port to the frontend is served on, default: 1234
 --max-edges-per-level  the maximum number of edges fetched per level, default: 100
---conn-str             the datomic connection string to use
 ```
 
 ### Usage 
@@ -45,5 +49,11 @@ The eid (or lookup-ref) input sets the root node of the graph. This is automatic
 The ancestor and descendant inputs decide how many levels of nodes are fetched in their respective directions. Limit these to control which nodes you're interested in seeing. Note that ancestors of descendants aren't fetched, and neither are descendants of ancestors. Navigate to these nodes to see all their ancestors and descendants.
 
 #### Visuals
-Nodes are colored semi-randomly by hashing their set of attributes. That means that nodes with the same attributes have the same color. Note that similar colors does not mean that their attribute sets are similar. Likewise, completely different nodes can have very similar colors, and may even collide.    
+Nodes are colored using a hash of their set of attributes. This means that nodes with the same attributes have the same color, so nodes can be visually grouped by what data they contain. Note that due to this hash-based color selection, color-proximity does not indicate similar data. Two very similar nodes can end up with colors that are completely different. Likewise, completely different nodes can have very similar colors, and may even collide with exactly the same color, if unlucky.    
+
+### JDBC Drivers
+Currently, drivers for `sqlite` and `postgres` are included by default. If you need a different driver, add an alias to `deps.edn` with the dependency using the same name for the alias as in the datomic connection string.
+
+`bb start` will find the jdbc driver name from the connection string and include that alias when starting the server.
+For example, with the mbrainz demo connection string `"datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db"`, the name is the part following `jdbc:`, so the alias used is `sqlite` in this case. 
 
