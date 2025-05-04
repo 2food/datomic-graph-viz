@@ -1,4 +1,4 @@
-`datomic-graph-viz` is a tool for visualizing Datomic data with an interactive explorable graph. 
+`datomic-graph-viz` is a tool for visualizing Datomic data as an interactive explorable graph. 
 
 ### Demo screencast
 [![Demo](https://img.youtube.com/vi/ktcxJWeJhP8/0.jpg)](https://www.youtube.com/watch?v=ktcxJWeJhP8)
