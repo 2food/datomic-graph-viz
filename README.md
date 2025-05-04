@@ -4,6 +4,9 @@
 [![Demo](https://img.youtube.com/vi/ktcxJWeJhP8/0.jpg)](https://www.youtube.com/watch?v=ktcxJWeJhP8)
 
 
+### Rationale
+In Datomic, the schema defines the attributes in the database, but not how the data is structured. Structure is intentionally not constrained in Datomic, which gives it great structural flexibility. This is one of its really strong features in my opinion. But, the lack of a structural schema can make it difficult to understand and build a mental model of the data, especially if you're new to the db or to Datomic in general. The only option is to explore the data directly, and this tool is one way to do exactly that, using a visual interactive graph.
+
 ### Getting started 
 Prerequisites: 
 - [babashka](https://github.com/babashka/babashka)
@@ -20,10 +23,10 @@ bb mbrainz-demo
 ```
 And you're off!
 
-#### With your own datomic database 
+#### With your own Datomic database 
 Depending on your storage service, you might need to add a driver dependency. See [JDBC Drivers](#jdbc-drivers).
 
-To run against your own datomic database, simply run 
+To run against your own Datomic database, simply run 
 ```shell
 bb start <your-datomic-connection-string>
 ```
@@ -52,7 +55,7 @@ The ancestor and descendant inputs decide how many levels of nodes are fetched i
 Nodes are colored using a hash of their set of attributes. This means that nodes with the same attributes have the same color, so nodes can be visually grouped by what data they contain. Note that due to this hash-based color selection, color-proximity does not indicate similar data. Two very similar nodes can end up with colors that are completely different. Likewise, completely different nodes can have very similar colors, and may even collide with exactly the same color, if unlucky.    
 
 ### JDBC Drivers
-Currently, drivers for `sqlite` and `postgres` are included by default. If you need a different driver, add an alias to `deps.edn` with the dependency using the same name for the alias as in the datomic connection string.
+Currently, drivers for `sqlite` and `postgres` are included by default. If you need a different driver, add an alias to `deps.edn` with the dependency using the same name for the alias as in the Datomic connection string.
 
 `bb start` will find the jdbc driver name from the connection string and include that alias when starting the server.
 For example, with the mbrainz demo connection string `"datomic:sql://mbrainz?jdbc:sqlite:storage/sqlite.db"`, the name is the part following `jdbc:`, so the alias used is `sqlite` in this case. 
