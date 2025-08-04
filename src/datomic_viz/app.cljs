@@ -58,16 +58,10 @@
 
 (defonce state (atom {}))
 
-(defn init! [{:keys [nodes edges root-id]}]
+(defn init! [{:keys [nodes edges bidirectional-edges root-id]}]
   (when-let [sim (:simulation @state)]
     (.stop sim))
-  (let [edge-array (clj->js (map #(update % :attribute str) edges))
-        dup-edges  (->> edges
-                        (map (juxt :source :target))
-                        (map set)
-                        (frequencies)
-                        (keep (fn [[edge c]] (when (< 1 c) edge)))
-                        set)
+  (let [edge-array (clj->js edges)
         node-array (clj->js nodes)
         simulation (-> (d3/forceSimulation node-array)
                        (.alphaDecay 0.005)
@@ -96,7 +90,7 @@
                                      [x1 y1] [(.-x (.-source edge)) (.-y (.-source edge))]
                                      [x2 y2] [(.-x (.-target edge)) (.-y (.-target edge))]
                                      reversed?      (< x2 x1)
-                                     [d rev-d] (if (dup-edges #{(.-id (.-source edge)) (.-id (.-target edge))})
+                                     [d rev-d] (if (bidirectional-edges #{(.-id (.-source edge)) (.-id (.-target edge))})
                                                  [(coords->curved-path [x1 y1] [x2 y2])
                                                   (coords->curved-path [x2 y2] [x1 y1] :flip? true)]
                                                  [(coords->path [x1 y1] [x2 y2])
@@ -245,10 +239,27 @@
                                            (sort)
                                            (map (fn [[k v]] [:tr [:td k] [:td (with-out-str (prn v))]])))]])}])]))
 
+(defn combine-edges [edges]
+  (->> edges
+       (group-by (juxt :source :target))
+       vals
+       (map (fn [es] (-> (first es)
+                         (update :attribute #(str/join " + " (cons % (map :attribute (rest es)))))
+                         (update :id #(str/join \+ (cons % (map :id (rest es))))))))))
+
 (defn get-data [params]
   (swap! state dissoc :error)
-  (p/let [{data :body :keys [status] :as req} (fetch/request "/data" {:method       :get
-                                                                      :query-params params})]
+  (p/let [{data :body :keys [status]} (fetch/request "/data" {:method       :get
+                                                              :query-params params})
+          data (-> data
+                   (assoc :bidirectional-edges (->> (:edges data)
+                                                    (map (juxt :source :target))
+                                                    (map set)
+                                                    (frequencies)
+                                                    (keep (fn [[edge c]] (when (< 1 c) edge)))
+                                                    set))
+                   (update :edges (fn [edges] (map #(update % :attribute str) edges)))
+                   (update :edges combine-edges))]
     (case status
       500 (swap! state assoc :error data)
       (do
