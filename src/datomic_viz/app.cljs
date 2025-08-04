@@ -213,7 +213,7 @@
                 :fill "none"}]
         [:text {:dy -5 :style {:user-select "none"
                                :font-size   12}}
-         [:textPath {:id (str id "-attribute") :href (str "#" id) :startOffset (+ 20 circle-radius)}
+         [:textPath {:id (str id "-attribute") :href (str "#" id) :startOffset "20%"}
           (str attribute)]]])
      (for [{:keys [id] :as node} nodes]
        (let [base-outline-color (if (= id root-id) "red" "white")]
