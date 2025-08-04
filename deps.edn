@@ -1,20 +1,20 @@
 {:paths ["src" "resources"]
  :deps  {
-         io.github.paintparty/bling {:mvn/version "0.4.2"}
-         com.datomic/peer           {:mvn/version "1.0.7277"}
-         http-kit/http-kit          {:mvn/version "2.7.0"}
+         io.github.paintparty/bling {:mvn/version "0.8.8"}
+         com.datomic/peer           {:mvn/version "1.0.7387"}
+         http-kit/http-kit          {:mvn/version "2.8.0"}
          lambdaisland/fetch         {:mvn/version "1.5.83"}
-         mount/mount                {:mvn/version "0.1.21"}
-         no.cjohansen/replicant     {:mvn/version "2025.03.02"}
-         org.babashka/cli           {:mvn/version "0.8.62"}
+         mount/mount                {:mvn/version "0.1.23"}
+         no.cjohansen/replicant     {:mvn/version "2025.06.21"}
+         org.babashka/cli           {:mvn/version "0.8.66"}
          org.slf4j/slf4j-nop        {:mvn/version "2.0.17"}
-         ring/ring-core             {:mvn/version "1.13.1"}
-         thheller/shadow-cljs       {:mvn/version "2.20.1"}
+         ring/ring-core             {:mvn/version "1.14.2"}
+         thheller/shadow-cljs       {:mvn/version "3.1.8"}
          }
  :aliases
  {:dev        {:extra-paths ["dev"]
                :extra-deps  {org.clojure/tools.namespace {:mvn/version "1.5.0"}}}
   :run        {:main-opts ["-m" "datomic-viz.main"]}
-  :postgresql {:extra-deps {org.postgresql/postgresql {:mvn/version "42.7.4"}}}
-  :sqlite     {:extra-deps {org.xerial/sqlite-jdbc {:mvn/version "3.49.1.0"}}}
+  :postgresql {:extra-deps {org.postgresql/postgresql {:mvn/version "42.7.7"}}}
+  :sqlite     {:extra-deps {org.xerial/sqlite-jdbc {:mvn/version "3.50.3.0"}}}
   }}
