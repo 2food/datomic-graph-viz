@@ -1,5 +1,6 @@
 (ns datomic-viz.app
-  (:require [clojure.string :as str]
+  (:require [clojure.math :as math]
+            [clojure.string :as str]
             [kitchen-async.promise :as p]
             [lambdaisland.fetch :as fetch]
             [replicant.dom :as r]
@@ -44,6 +45,14 @@
                  k (assoc k (get-input-value el)))))
            {})))
 
+(defn distance [[x1 y1] [x2 y2]]
+  (math/sqrt (+ (math/pow (- x1 x2) 2)
+                (math/pow (- y1 y2) 2))))
+
+(defn coords->curved-path [[x1 y1] [x2 y2] & {:keys [flip?]}]
+  (let [dist (distance [x1 y1] [x2 y2])]
+    (str/join " " ["M" x1 y1 "A" dist dist 0 0 (if flip? 1 0) x2 y2])))
+
 (defn coords->path [[x1 y1] [x2 y2]]
   (str/join " " ["M" x1 y1 "L" x2 y2]))
 
@@ -53,6 +62,12 @@
   (when-let [sim (:simulation @state)]
     (.stop sim))
   (let [edge-array (clj->js (map #(update % :attribute str) edges))
+        dup-edges  (->> edges
+                        (map (juxt :source :target))
+                        (map set)
+                        (frequencies)
+                        (keep (fn [[edge c]] (when (< 1 c) edge)))
+                        set)
         node-array (clj->js nodes)
         simulation (-> (d3/forceSimulation node-array)
                        (.alphaDecay 0.005)
@@ -80,9 +95,14 @@
                                      attribute-text (get-el (str (.-id edge) "-attribute"))
                                      [x1 y1] [(.-x (.-source edge)) (.-y (.-source edge))]
                                      [x2 y2] [(.-x (.-target edge)) (.-y (.-target edge))]
-                                     reversed?      (< x2 x1)]
-                                 (.setAttribute dom-edge "d" (coords->path [x1 y1] [x2 y2]))
-                                 (.setAttribute rev-dom-edge "d" (coords->path [x2 y2] [x1 y1]))
+                                     reversed?      (< x2 x1)
+                                     [d rev-d] (if (dup-edges #{(.-id (.-source edge)) (.-id (.-target edge))})
+                                                 [(coords->curved-path [x1 y1] [x2 y2])
+                                                  (coords->curved-path [x2 y2] [x1 y1] :flip? true)]
+                                                 [(coords->path [x1 y1] [x2 y2])
+                                                  (coords->path [x2 y2] [x1 y1])])]
+                                 (.setAttribute dom-edge "d" d)
+                                 (.setAttribute rev-dom-edge "d" rev-d)
                                  (.setAttribute attribute-text "href" (str "#" (cond-> (.-id edge)
                                                                                  reversed? (str "-reversed"))))))))
     (swap! state assoc
@@ -185,10 +205,12 @@
      (for [{:keys [id attribute]} edges]
        [:g
         [:path {:id           id
+                :fill         "none"
                 :stroke       "black"
                 :stroke-width 3
                 :marker-end   (str "url(#" arrow-id ")")}]
-        [:path {:id (str id "-reversed")}]
+        [:path {:id   (str id "-reversed")
+                :fill "none"}]
         [:text {:dy -5 :style {:user-select "none"
                                :font-size   12}}
          [:textPath {:id (str id "-attribute") :href (str "#" id) :startOffset (+ 20 circle-radius)}
