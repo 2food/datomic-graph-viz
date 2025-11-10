@@ -44,7 +44,7 @@ Available options to `bb start` are:
 #### Mouse actions 
 You can drag nodes around, and grab the background to drag the whole graph around. 
 
-Double clicking a node navigates to that node. This creates a new graph with that entity as the root node.
+Double clicking a node navigates to that node. This fetches a new graph with that entity as the root node.
 
 #### Form input 
 The eid (or lookup-ref) input sets the root node of the graph. This is automatically set when navigating with double clicks. Leave it empty to get a random entity, which is what happens on the first page load. (The random selection excludes entities without any refs to or from it).
